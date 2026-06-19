@@ -16,8 +16,9 @@ import * as THREE from "three";
 // Tunable constants
 // ---------------------------------------------------------------------------
 const RADIUS = 100; // sphere radius (world units)
-const GRID_STEP = 10; // degrees between graticule lines
+const GRID_STEP = 2; // degrees between graticule lines
 const SAMPLE_STEP = 2; // degrees between sampled points along a line (smoothness)
+const GROUND_INSET = 0.997; // opaque surface sits just under the grid lines
 
 // Camera placement, relative to the anchor at the top of the sphere (0, R, 0).
 const CAM_HEIGHT = 5; // how far above the surface the eye sits
@@ -99,7 +100,17 @@ function buildGraticule() {
   return new THREE.LineSegments(geometry, material);
 }
 
+// Opaque ground: a solid sphere just inside the grid radius. It is filled with
+// the background color so it stays invisible against the sky, but it writes
+// depth and therefore hides the grid lines on the far side of the sphere.
+function buildGround() {
+  const geometry = new THREE.SphereGeometry(RADIUS * GROUND_INSET, 96, 96);
+  const material = new THREE.MeshBasicMaterial({ color: COLOR_BG });
+  return new THREE.Mesh(geometry, material);
+}
+
 const globe = new THREE.Group();
+globe.add(buildGround());
 globe.add(buildGraticule());
 scene.add(globe);
 
