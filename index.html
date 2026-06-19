@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+    <title>World of Snow Yang</title>
+    <style>
+      :root {
+        --bg: #222222;
+        --fg: #aaaaaa;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: var(--bg);
+      }
+      #scene {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      #hud {
+        position: fixed;
+        top: 12px;
+        right: 16px;
+        font-family: "Courier New", monospace;
+        font-size: 14px;
+        line-height: 1.4;
+        color: var(--fg);
+        text-align: right;
+        white-space: pre;
+        user-select: none;
+        pointer-events: none;
+      }
+    </style>
+
+    <!-- Static-friendly: pull Three.js from a CDN via an import map so no
+         bundler is needed. Pinned version keeps the deploy reproducible. -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <canvas id="scene"></canvas>
+    <div id="hud">Lon: --
+Lat: --</div>
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
