@@ -1,40 +1,52 @@
-// World of Snow Yang — wireframe sphere + lon/lat viewpoint navigation.
+// World of Snow Yang — infinite grid plane with random mountain areas.
 //
-// This implements the first part of SPEC.md: the appearance of a huge
-// wireframe sphere whose lower half fills the screen, and direction-key
-// control that "rolls" the sphere so the viewpoint moves across it.
+// Implements the appearance from SPEC.md: a perspective grid plane viewed from
+// above looking forward, that you travel across with arrow keys or drag without
+// ever reaching an edge, with randomly scattered "mountain areas" where the
+// grid points are raised by noise.
 //
-// Model: the camera is FIXED above the top of the sphere, looking North and
-// slightly down. The sphere is a Group ("globe") that we rotate so the current
-// (lon, lat) is brought to the top, directly under the camera, with North
-// pointing into the screen. Moving therefore looks like the sphere rolling
-// beneath a stationary observer — which is exactly the spec's intent.
+// Model: the camera is FIXED. A tessellated line grid sits centered under it.
+// The viewpoint position V (world X/Z) drives two shader uniforms — a per-cell
+// snapped origin (uBase) and the exact position (uV) — so the grid scrolls
+// seamlessly beneath the camera and never shows an edge. Vertex heights are
+// computed in the vertex shader from a world-space noise field, so mountains
+// stay attached to the world as you move. A distance fade dissolves the grid
+// into the background at the horizon, selling the "infinite" look.
 
 import * as THREE from "three";
 
 // ---------------------------------------------------------------------------
 // Tunable constants
 // ---------------------------------------------------------------------------
-const RADIUS = 100; // sphere radius (world units)
-const GRID_STEP = 2; // degrees between graticule lines
-const SAMPLE_STEP = 2; // degrees between sampled points along a line (smoothness)
-const GROUND_INSET = 0.997; // opaque surface sits just under the grid lines
+// Grid geometry
+const CELL = 4; // world units between grid lines
+const HALF = 320; // grid extends [-HALF, HALF] around the viewpoint
+const FADE_START = 170; // distance where lines begin to fade
+const FADE_END = 300; // distance where lines fully vanish (< HALF)
 
-// Camera placement, relative to the anchor at the top of the sphere (0, R, 0).
-const CAM_HEIGHT = 5; // how far above the surface the eye sits
-const CAM_BACK = 6; // offset toward the viewer (South of the anchor)
-const LOOK_DROP = 30; // how far below the anchor the camera aims
-const LOOK_FORWARD = 80; // how far North the camera aims
+// Camera (horizon perspective)
+const FOV = 60;
+const EYE_HEIGHT = 18; // camera height above the plane
+const CAM_BACK = 6; // camera sits slightly behind the viewpoint (+Z)
+const LOOK_FORWARD = 400; // how far ahead (-Z) the camera aims
+const LOOK_DROP = 6; // how far below eye level the aim point is
 
-// Movement (degrees / second). Speed ramps up the longer a key is held.
-const BASE_SPEED = 10;
-const MAX_SPEED = 70;
-const RAMP = 40; // extra deg/s added per second of holding
+// Mountains (noise-driven elevation)
+const MASK_FREQ = 0.0045; // low frequency: where mountain areas appear
+const MOUNTAIN_THRESHOLD = 0.55; // mask above this becomes mountainous
+const MOUNTAIN_BAND = 0.15; // soft edge width of mountain areas
+const DETAIL_FREQ = 0.02; // higher frequency: the mountain shapes
+const AMPLITUDE = 48; // peak mountain height
+const NOISE_SEED = new THREE.Vector2(37.2, 11.7);
+
+// Movement (world units / second). Speed ramps the longer a key is held.
+const BASE_SPEED = 30;
+const MAX_SPEED = 200;
+const RAMP = 130; // extra units/s added per second of holding
+const DRAG_SPEED = 0.6; // world units per pixel of pointer drag
 
 const COLOR_BG = 0x222222;
 const COLOR_FG = 0xaaaaaa;
-
-const DEG2RAD = Math.PI / 180;
 
 // ---------------------------------------------------------------------------
 // Renderer / scene / camera
@@ -48,46 +60,42 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(COLOR_BG);
 
 const camera = new THREE.PerspectiveCamera(
-  55,
+  FOV,
   window.innerWidth / window.innerHeight,
   0.1,
   2000,
 );
-camera.position.set(0, RADIUS + CAM_HEIGHT, CAM_BACK);
-camera.lookAt(0, RADIUS - LOOK_DROP, -LOOK_FORWARD);
+// The viewpoint maps to the world origin in render space, so the camera is
+// fixed just above and slightly behind it, looking forward (-Z) and down.
+camera.position.set(0, EYE_HEIGHT, CAM_BACK);
+camera.lookAt(0, EYE_HEIGHT - LOOK_DROP, -LOOK_FORWARD);
 
 // ---------------------------------------------------------------------------
-// Wireframe sphere as a lon/lat graticule (clean meridians + parallels,
-// rather than a triangulated mesh wireframe).
+// Grid geometry: a regular CELL lattice over [-HALF, HALF], connected only
+// horizontally and vertically (clean squares, no triangulated diagonals).
+// Heights are filled in by the vertex shader, so y is left at 0 here.
 // ---------------------------------------------------------------------------
-function lonLatToVec(lonDeg, latDeg) {
-  const lon = lonDeg * DEG2RAD;
-  const lat = latDeg * DEG2RAD;
-  const cosLat = Math.cos(lat);
-  return new THREE.Vector3(
-    RADIUS * cosLat * Math.sin(lon),
-    RADIUS * Math.sin(lat),
-    RADIUS * cosLat * Math.cos(lon),
-  );
-}
-
-function buildGraticule() {
+function buildGrid() {
   const positions = [];
-  const pushSegment = (a, b) => {
-    positions.push(a.x, a.y, a.z, b.x, b.y, b.z);
-  };
+  const n = Math.round((HALF * 2) / CELL); // divisions per axis
+  const min = -HALF;
 
-  // Meridians (lines of constant longitude), pole to pole.
-  for (let lon = -180; lon < 180; lon += GRID_STEP) {
-    for (let lat = -90; lat < 90; lat += SAMPLE_STEP) {
-      pushSegment(lonLatToVec(lon, lat), lonLatToVec(lon, lat + SAMPLE_STEP));
+  // Lines of constant Z (run along X).
+  for (let j = 0; j <= n; j++) {
+    const z = min + j * CELL;
+    for (let i = 0; i < n; i++) {
+      const x0 = min + i * CELL;
+      const x1 = x0 + CELL;
+      positions.push(x0, 0, z, x1, 0, z);
     }
   }
-
-  // Parallels (lines of constant latitude), full circles.
-  for (let lat = -90 + GRID_STEP; lat < 90; lat += GRID_STEP) {
-    for (let lon = -180; lon < 180; lon += SAMPLE_STEP) {
-      pushSegment(lonLatToVec(lon, lat), lonLatToVec(lon + SAMPLE_STEP, lat));
+  // Lines of constant X (run along Z).
+  for (let i = 0; i <= n; i++) {
+    const x = min + i * CELL;
+    for (let j = 0; j < n; j++) {
+      const z0 = min + j * CELL;
+      const z1 = z0 + CELL;
+      positions.push(x, 0, z0, x, 0, z1);
     }
   }
 
@@ -96,41 +104,112 @@ function buildGraticule() {
     "position",
     new THREE.Float32BufferAttribute(positions, 3),
   );
-  const material = new THREE.LineBasicMaterial({ color: COLOR_FG });
-  return new THREE.LineSegments(geometry, material);
+  return geometry;
 }
 
-// Opaque ground: a solid sphere just inside the grid radius. It is filled with
-// the background color so it stays invisible against the sky, but it writes
-// depth and therefore hides the grid lines on the far side of the sphere.
-function buildGround() {
-  const geometry = new THREE.SphereGeometry(RADIUS * GROUND_INSET, 96, 96);
-  const material = new THREE.MeshBasicMaterial({ color: COLOR_BG });
-  return new THREE.Mesh(geometry, material);
-}
+const uniforms = {
+  uBase: { value: new THREE.Vector2(0, 0) },
+  uV: { value: new THREE.Vector2(0, 0) },
+  uMaskFreq: { value: MASK_FREQ },
+  uDetailFreq: { value: DETAIL_FREQ },
+  uThreshold: { value: MOUNTAIN_THRESHOLD },
+  uBand: { value: MOUNTAIN_BAND },
+  uAmplitude: { value: AMPLITUDE },
+  uSeed: { value: NOISE_SEED },
+  uColor: { value: new THREE.Color(COLOR_FG) },
+  uFadeStart: { value: FADE_START },
+  uFadeEnd: { value: FADE_END },
+};
 
-const globe = new THREE.Group();
-globe.add(buildGround());
-globe.add(buildGraticule());
-scene.add(globe);
+const vertexShader = /* glsl */ `
+  uniform vec2 uBase;
+  uniform vec2 uV;
+  uniform float uMaskFreq;
+  uniform float uDetailFreq;
+  uniform float uThreshold;
+  uniform float uBand;
+  uniform float uAmplitude;
+  uniform vec2 uSeed;
+  varying float vDist;
+
+  float hash(vec2 p) {
+    p = fract(p * vec2(123.34, 456.21));
+    p += dot(p, p + 45.32);
+    return fract(p.x * p.y);
+  }
+  float vnoise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    float a = hash(i);
+    float b = hash(i + vec2(1.0, 0.0));
+    float c = hash(i + vec2(0.0, 1.0));
+    float d = hash(i + vec2(1.0, 1.0));
+    vec2 u = f * f * (3.0 - 2.0 * f);
+    return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+  }
+  float fbm(vec2 p) {
+    float v = 0.0;
+    float amp = 0.5;
+    for (int k = 0; k < 5; k++) {
+      v += amp * vnoise(p);
+      p *= 2.0;
+      amp *= 0.5;
+    }
+    return v;
+  }
+  float terrainHeight(vec2 w) {
+    float mask = fbm(w * uMaskFreq + uSeed);
+    float m = smoothstep(uThreshold, uThreshold + uBand, mask);
+    float detail = fbm(w * uDetailFreq + uSeed * 1.7);
+    return m * uAmplitude * detail;
+  }
+
+  void main() {
+    vec2 worldXZ = uBase + position.xz; // world-attached grid coordinate
+    vec2 r = worldXZ - uV;              // position relative to the viewpoint
+    float h = terrainHeight(worldXZ);
+    vDist = length(r);
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(r.x, h, r.y, 1.0);
+  }
+`;
+
+const fragmentShader = /* glsl */ `
+  uniform vec3 uColor;
+  uniform float uFadeStart;
+  uniform float uFadeEnd;
+  varying float vDist;
+
+  void main() {
+    float alpha = 1.0 - smoothstep(uFadeStart, uFadeEnd, vDist);
+    if (alpha <= 0.0) discard;
+    gl_FragColor = vec4(uColor, alpha);
+  }
+`;
+
+const gridMaterial = new THREE.ShaderMaterial({
+  uniforms,
+  vertexShader,
+  fragmentShader,
+  transparent: true,
+  depthWrite: false,
+});
+
+const grid = new THREE.LineSegments(buildGrid(), gridMaterial);
+grid.frustumCulled = false; // the shader moves vertices; keep it always drawn
+scene.add(grid);
 
 // ---------------------------------------------------------------------------
-// Viewpoint state + globe orientation
+// Viewpoint state. V is the world (X, Z) position of the viewpoint.
+// Forward (into the screen) is -Z, so HUD Y is reported as -V.z.
 // ---------------------------------------------------------------------------
-const view = { lon: 0, lat: 0 }; // start at (0, 0), facing North
+const V = { x: 0, z: 0 };
 
-const qX = new THREE.Quaternion();
-const qY = new THREE.Quaternion();
-const AXIS_X = new THREE.Vector3(1, 0, 0);
-const AXIS_Y = new THREE.Vector3(0, 1, 0);
-
-function updateGlobeOrientation() {
-  // Bring (lon, lat) to the top (0, R, 0): first spin about Y by -lon to put
-  // the meridian in front, then tilt about X by (lat - 90deg) to lift the
-  // point to the top with North pointing into the screen (-Z).
-  qY.setFromAxisAngle(AXIS_Y, -view.lon * DEG2RAD);
-  qX.setFromAxisAngle(AXIS_X, (view.lat - 90) * DEG2RAD);
-  globe.quaternion.copy(qX).multiply(qY); // apply qY first, then qX
+function syncGridUniforms() {
+  uniforms.uV.value.set(V.x, V.z);
+  uniforms.uBase.value.set(
+    Math.floor(V.x / CELL) * CELL,
+    Math.floor(V.z / CELL) * CELL,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -163,33 +242,50 @@ function speedFor(dir, dt) {
   return Math.min(MAX_SPEED, BASE_SPEED + RAMP * held[dir]);
 }
 
-function wrapLon(lon) {
-  // Keep longitude in (-180, 180].
-  let l = ((lon + 180) % 360 + 360) % 360 - 180;
-  if (l <= -180) l += 360;
-  return l;
-}
-
-function applyMovement(dt) {
-  const dLat = (speedFor("north", dt) - speedFor("south", dt)) * dt;
-  const dLon = (speedFor("east", dt) - speedFor("west", dt)) * dt;
-  if (dLat !== 0) {
-    // Clamp just short of the poles so North stays well-defined.
-    view.lat = Math.max(-89.99, Math.min(89.99, view.lat + dLat));
-  }
-  if (dLon !== 0) view.lon = wrapLon(view.lon + dLon);
+function applyKeys(dt) {
+  const forward = (speedFor("north", dt) - speedFor("south", dt)) * dt;
+  const strafe = (speedFor("east", dt) - speedFor("west", dt)) * dt;
+  V.z -= forward; // North/forward = -Z
+  V.x += strafe; // East = +X
 }
 
 // ---------------------------------------------------------------------------
-// HUD (debug lon/lat readout, top-right)
+// Pointer drag (mouse + touch via Pointer Events): grab-the-ground panning.
+// ---------------------------------------------------------------------------
+let dragging = false;
+let lastX = 0;
+let lastY = 0;
+
+canvas.addEventListener("pointerdown", (e) => {
+  dragging = true;
+  lastX = e.clientX;
+  lastY = e.clientY;
+  canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener("pointermove", (e) => {
+  if (!dragging) return;
+  const dx = e.clientX - lastX;
+  const dy = e.clientY - lastY;
+  lastX = e.clientX;
+  lastY = e.clientY;
+  // Move the viewpoint opposite the drag so the ground follows the finger.
+  V.x -= dx * DRAG_SPEED;
+  V.z -= dy * DRAG_SPEED;
+});
+function endDrag() {
+  dragging = false;
+}
+canvas.addEventListener("pointerup", endDrag);
+canvas.addEventListener("pointercancel", endDrag);
+
+// ---------------------------------------------------------------------------
+// HUD (debug X/Y readout, top-right)
 // ---------------------------------------------------------------------------
 const hud = document.getElementById("hud");
 function formatHud() {
-  const lonDir = view.lon >= 0 ? "E" : "W";
-  const latDir = view.lat >= 0 ? "N" : "S";
-  const lon = Math.abs(view.lon).toFixed(1).padStart(5, " ");
-  const lat = Math.abs(view.lat).toFixed(1).padStart(5, " ");
-  hud.textContent = `Lon: ${lon}° ${lonDir}\nLat: ${lat}° ${latDir}`;
+  const x = V.x.toFixed(1).padStart(7, " ");
+  const y = (-V.z).toFixed(1).padStart(7, " ");
+  hud.textContent = `X: ${x}\nY: ${y}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -198,14 +294,14 @@ function formatHud() {
 const clock = new THREE.Clock();
 function tick() {
   const dt = Math.min(clock.getDelta(), 0.1); // guard against tab-switch jumps
-  applyMovement(dt);
-  updateGlobeOrientation();
+  applyKeys(dt);
+  syncGridUniforms();
   formatHud();
   renderer.render(scene, camera);
   requestAnimationFrame(tick);
 }
 
-updateGlobeOrientation();
+syncGridUniforms();
 formatHud();
 tick();
 
