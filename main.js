@@ -1,9 +1,9 @@
 // World of Snow Yang — infinite grid plane with random mountain areas.
 //
 // Implements the appearance from SPEC.md: a perspective grid plane viewed from
-// above looking forward, that you travel across with arrow keys or drag without
-// ever reaching an edge, with randomly scattered "mountain areas" where the
-// grid points are raised by noise.
+// above looking forward, that drifts forward on its own and never reaches an
+// edge, with randomly scattered "mountain areas" where the grid points are
+// raised by noise.
 //
 // Model: the camera is FIXED. A tessellated line grid sits centered under it.
 // The viewpoint position V (world X/Z) drives two shader uniforms — a per-cell
@@ -42,8 +42,13 @@ const NOISE_SEED = new THREE.Vector2(37.2, 11.7);
 // Navigation: a constant little forward drift when idle (world units / second).
 const DRIFT_SPEED = 4;
 
-const COLOR_BG = 0x222222;
-const COLOR_FG = 0xaaaaaa;
+// Colors
+const COLOR_BG = 0xffffff; // background
+const COLOR_PLANE = 0xaaaaaa; // grid plane (surface fill) color
+const COLOR_FG = 0xaaaaaa; // grid line color
+// Grid plane opacity: 0 = fully transparent, 1 = opaque. Does not affect the
+// grid lines, which always stay opaque.
+const PLANE_OPACITY = 0.5;
 
 // ---------------------------------------------------------------------------
 // Renderer / scene / camera
@@ -104,7 +109,11 @@ function buildGrid() {
   return geometry;
 }
 
-const uniforms = {
+// Uniforms shared by the grid lines and the grid-plane fill (terrain
+// displacement + horizon fade). Color-specific uniforms are added per material
+// below; the wrapper objects are shared by reference, so syncGridUniforms only
+// has to update them once.
+const shared = {
   uBase: { value: new THREE.Vector2(0, 0) },
   uV: { value: new THREE.Vector2(0, 0) },
   uMaskFreq: { value: MASK_FREQ },
@@ -113,12 +122,12 @@ const uniforms = {
   uBand: { value: MOUNTAIN_BAND },
   uAmplitude: { value: AMPLITUDE },
   uSeed: { value: NOISE_SEED },
-  uColor: { value: new THREE.Color(COLOR_FG) },
   uFadeStart: { value: FADE_START },
   uFadeEnd: { value: FADE_END },
 };
 
-const vertexShader = /* glsl */ `
+// GLSL noise + terrain height, shared by the vertex shader below.
+const terrainGLSL = /* glsl */ `
   uniform vec2 uBase;
   uniform vec2 uV;
   uniform float uMaskFreq;
@@ -160,7 +169,12 @@ const vertexShader = /* glsl */ `
     float detail = fbm(w * uDetailFreq + uSeed * 1.7);
     return m * uAmplitude * detail;
   }
+`;
 
+// Vertex shader shared by the lines and the plane fill: displaces each vertex
+// onto the terrain and passes the viewpoint-relative distance for fading.
+const vertexShader = /* glsl */ `
+  ${terrainGLSL}
   void main() {
     vec2 worldXZ = uBase + position.xz; // world-attached grid coordinate
     vec2 r = worldXZ - uV;              // position relative to the viewpoint
@@ -170,7 +184,8 @@ const vertexShader = /* glsl */ `
   }
 `;
 
-const fragmentShader = /* glsl */ `
+// Grid lines: their own color, always opaque, fading out at the horizon.
+const lineFragmentShader = /* glsl */ `
   uniform vec3 uColor;
   uniform float uFadeStart;
   uniform float uFadeEnd;
@@ -183,16 +198,63 @@ const fragmentShader = /* glsl */ `
   }
 `;
 
-const gridMaterial = new THREE.ShaderMaterial({
-  uniforms,
+// Grid plane (surface fill): its own color and opacity, independent of lines.
+const planeFragmentShader = /* glsl */ `
+  uniform vec3 uColor;
+  uniform float uOpacity;
+  uniform float uFadeStart;
+  uniform float uFadeEnd;
+  varying float vDist;
+
+  void main() {
+    float alpha = (1.0 - smoothstep(uFadeStart, uFadeEnd, vDist)) * uOpacity;
+    if (alpha <= 0.0) discard;
+    gl_FragColor = vec4(uColor, alpha);
+  }
+`;
+
+const lineMaterial = new THREE.ShaderMaterial({
+  uniforms: Object.assign({}, shared, {
+    uColor: { value: new THREE.Color(COLOR_FG) },
+  }),
   vertexShader,
-  fragmentShader,
+  fragmentShader: lineFragmentShader,
   transparent: true,
   depthWrite: false,
 });
 
-const grid = new THREE.LineSegments(buildGrid(), gridMaterial);
+const planeMaterial = new THREE.ShaderMaterial({
+  uniforms: Object.assign({}, shared, {
+    uColor: { value: new THREE.Color(COLOR_PLANE) },
+    uOpacity: { value: PLANE_OPACITY },
+  }),
+  vertexShader,
+  fragmentShader: planeFragmentShader,
+  transparent: true,
+  depthWrite: true, // write depth so the surface hides grid lines behind ridges
+  polygonOffset: true, // push the fill slightly back so coincident lines win
+  polygonOffsetFactor: 1,
+  polygonOffsetUnits: 1,
+});
+
+// Grid-plane fill: a triangulated lattice matching the line grid, displaced by
+// the same terrain. Drawn first (renderOrder 0) so the lines sit on top.
+const planeDivs = Math.round((HALF * 2) / CELL);
+const planeGeometry = new THREE.PlaneGeometry(
+  HALF * 2,
+  HALF * 2,
+  planeDivs,
+  planeDivs,
+);
+planeGeometry.rotateX(-Math.PI / 2); // lay it flat in the XZ plane
+const planeMesh = new THREE.Mesh(planeGeometry, planeMaterial);
+planeMesh.frustumCulled = false;
+planeMesh.renderOrder = 0;
+scene.add(planeMesh);
+
+const grid = new THREE.LineSegments(buildGrid(), lineMaterial);
 grid.frustumCulled = false; // the shader moves vertices; keep it always drawn
+grid.renderOrder = 1;
 scene.add(grid);
 
 // ---------------------------------------------------------------------------
@@ -202,8 +264,8 @@ scene.add(grid);
 const V = { x: 0, z: 0 };
 
 function syncGridUniforms() {
-  uniforms.uV.value.set(V.x, V.z);
-  uniforms.uBase.value.set(
+  shared.uV.value.set(V.x, V.z);
+  shared.uBase.value.set(
     Math.floor(V.x / CELL) * CELL,
     Math.floor(V.z / CELL) * CELL,
   );
