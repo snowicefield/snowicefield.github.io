@@ -39,11 +39,8 @@ const DETAIL_FREQ = 0.02; // higher frequency: the mountain shapes
 const AMPLITUDE = 48; // peak mountain height
 const NOISE_SEED = new THREE.Vector2(37.2, 11.7);
 
-// Movement (world units / second). Speed ramps the longer a key is held.
-const BASE_SPEED = 30;
-const MAX_SPEED = 200;
-const RAMP = 130; // extra units/s added per second of holding
-const DRAG_SPEED = 0.6; // world units per pixel of pointer drag
+// Navigation: a constant little forward drift when idle (world units / second).
+const DRIFT_SPEED = 4;
 
 const COLOR_BG = 0x222222;
 const COLOR_FG = 0xaaaaaa;
@@ -65,10 +62,10 @@ const camera = new THREE.PerspectiveCamera(
   0.1,
   2000,
 );
-// The viewpoint maps to the world origin in render space, so the camera is
-// fixed just above and slightly behind it, looking forward (-Z) and down.
+// The viewpoint maps to the world origin in render space, so the camera stays
+// fixed in X/Z just above and slightly behind it, looking forward (-Z) and
+// down. Its height is updated every frame to ride over the terrain (see tick).
 camera.position.set(0, EYE_HEIGHT, CAM_BACK);
-camera.lookAt(0, EYE_HEIGHT - LOOK_DROP, -LOOK_FORWARD);
 
 // ---------------------------------------------------------------------------
 // Grid geometry: a regular CELL lattice over [-HALF, HALF], connected only
@@ -213,70 +210,89 @@ function syncGridUniforms() {
 }
 
 // ---------------------------------------------------------------------------
-// Direction-key control. Holding longer accelerates (BASE -> MAX).
+// CPU mirror of the vertex-shader terrain height, used to lift the camera so
+// it rides over the mountains instead of clipping through them.
+//
+// The GPU evaluates the noise in 32-bit floats; to sample the SAME field on
+// the CPU (so the camera stays glued to the rendered surface even far from the
+// origin), every operation below is wrapped in Math.fround to emulate float32.
+// This is a faithful port of `terrainHeight`/`fbm`/`vnoise`/`hash` in the
+// vertex shader above — keep the two in sync if either changes.
 // ---------------------------------------------------------------------------
-const KEY_DIRS = {
-  ArrowUp: "north",
-  ArrowDown: "south",
-  ArrowLeft: "west",
-  ArrowRight: "east",
-};
-// Per-direction held time in seconds, or null when released.
-const held = { north: null, south: null, west: null, east: null };
+const fr = Math.fround;
+const N_C1 = fr(123.34);
+const N_C2 = fr(456.21);
+const N_C3 = fr(45.32);
+const N_MF = fr(MASK_FREQ);
+const N_DF = fr(DETAIL_FREQ);
+const N_TH = fr(MOUNTAIN_THRESHOLD);
+const N_TH1 = fr(MOUNTAIN_THRESHOLD + MOUNTAIN_BAND);
+const N_AMP = fr(AMPLITUDE);
+const N_SX = fr(NOISE_SEED.x);
+const N_SY = fr(NOISE_SEED.y);
+const N_SX2 = fr(N_SX * fr(1.7));
+const N_SY2 = fr(N_SY * fr(1.7));
 
-window.addEventListener("keydown", (e) => {
-  const dir = KEY_DIRS[e.key];
-  if (!dir) return;
-  e.preventDefault();
-  if (held[dir] === null) held[dir] = 0;
-});
-window.addEventListener("keyup", (e) => {
-  const dir = KEY_DIRS[e.key];
-  if (!dir) return;
-  held[dir] = null;
-});
-
-function speedFor(dir, dt) {
-  if (held[dir] === null) return 0;
-  held[dir] += dt;
-  return Math.min(MAX_SPEED, BASE_SPEED + RAMP * held[dir]);
+function nFract(x) {
+  return fr(x - Math.floor(x));
+}
+function nMix(a, b, t) {
+  return fr(fr(a * fr(1 - t)) + fr(b * t)); // GLSL mix: a*(1-t) + b*t
+}
+function nHash(px, py) {
+  px = nFract(fr(px * N_C1));
+  py = nFract(fr(py * N_C2));
+  const t1 = fr(px + N_C3);
+  const t2 = fr(py + N_C3);
+  const d = fr(fr(px * t1) + fr(py * t2)); // dot(p, p + 45.32)
+  px = fr(px + d);
+  py = fr(py + d);
+  return nFract(fr(px * py));
+}
+function nVnoise(px, py) {
+  const ix = Math.floor(px);
+  const iy = Math.floor(py);
+  const fx = nFract(px);
+  const fy = nFract(py);
+  const a = nHash(ix, iy);
+  const b = nHash(ix + 1, iy);
+  const c = nHash(ix, iy + 1);
+  const d = nHash(ix + 1, iy + 1);
+  const ux = fr(fr(fx * fx) * fr(3 - fr(2 * fx)));
+  const uy = fr(fr(fy * fy) * fr(3 - fr(2 * fy)));
+  return nMix(nMix(a, b, ux), nMix(c, d, ux), uy);
+}
+function nFbm(px, py) {
+  let v = 0;
+  let amp = 0.5;
+  for (let k = 0; k < 5; k++) {
+    v = fr(v + fr(amp * nVnoise(px, py)));
+    px = fr(px * 2);
+    py = fr(py * 2);
+    amp = fr(amp * 0.5);
+  }
+  return v;
+}
+function nSmoothstep(e0, e1, x) {
+  let t = fr(fr(x - e0) / fr(e1 - e0));
+  t = t < 0 ? 0 : t > 1 ? 1 : t;
+  return fr(fr(t * t) * fr(3 - fr(2 * t)));
+}
+function terrainHeightAt(wx, wz) {
+  wx = fr(wx);
+  wz = fr(wz);
+  const mask = nFbm(fr(fr(wx * N_MF) + N_SX), fr(fr(wz * N_MF) + N_SY));
+  const m = nSmoothstep(N_TH, N_TH1, mask);
+  const detail = nFbm(fr(fr(wx * N_DF) + N_SX2), fr(fr(wz * N_DF) + N_SY2));
+  return fr(fr(m * N_AMP) * detail);
 }
 
-function applyKeys(dt) {
-  const forward = (speedFor("north", dt) - speedFor("south", dt)) * dt;
-  const strafe = (speedFor("east", dt) - speedFor("west", dt)) * dt;
-  V.z -= forward; // North/forward = -Z
-  V.x += strafe; // East = +X
-}
-
 // ---------------------------------------------------------------------------
-// Pointer drag (mouse + touch via Pointer Events): grab-the-ground panning.
+// Navigation. No input controls yet (TBD) — just a constant forward drift.
 // ---------------------------------------------------------------------------
-let dragging = false;
-let lastX = 0;
-let lastY = 0;
-
-canvas.addEventListener("pointerdown", (e) => {
-  dragging = true;
-  lastX = e.clientX;
-  lastY = e.clientY;
-  canvas.setPointerCapture(e.pointerId);
-});
-canvas.addEventListener("pointermove", (e) => {
-  if (!dragging) return;
-  const dx = e.clientX - lastX;
-  const dy = e.clientY - lastY;
-  lastX = e.clientX;
-  lastY = e.clientY;
-  // Move the viewpoint opposite the drag so the ground follows the finger.
-  V.x -= dx * DRAG_SPEED;
-  V.z -= dy * DRAG_SPEED;
-});
-function endDrag() {
-  dragging = false;
+function applyDrift(dt) {
+  V.z -= DRIFT_SPEED * dt; // forward = -Z
 }
-canvas.addEventListener("pointerup", endDrag);
-canvas.addEventListener("pointercancel", endDrag);
 
 // ---------------------------------------------------------------------------
 // HUD (debug X/Y readout, top-right)
@@ -294,8 +310,13 @@ function formatHud() {
 const clock = new THREE.Clock();
 function tick() {
   const dt = Math.min(clock.getDelta(), 0.1); // guard against tab-switch jumps
-  applyKeys(dt);
+  applyDrift(dt);
   syncGridUniforms();
+  // Lift the camera onto the terrain so it climbs mountains instead of clipping
+  // through them, keeping a constant eye height above the local ground.
+  const groundH = terrainHeightAt(V.x, V.z);
+  camera.position.y = EYE_HEIGHT + groundH;
+  camera.lookAt(0, camera.position.y - LOOK_DROP, -LOOK_FORWARD);
   formatHud();
   renderer.render(scene, camera);
   requestAnimationFrame(tick);

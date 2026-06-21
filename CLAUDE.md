@@ -9,9 +9,10 @@ built with **Three.js**. `SPEC.md` is the source of truth for the design.
 
 The page renders an **infinite, perspective grid plane** viewed from above
 looking forward, with randomly scattered "mountain areas" where the grid points
-are raised by noise. The viewpoint travels across the plane via arrow keys or
-drag and never reaches an edge. Palette: dark-grey background, light-grey lines
-and text. Current X/Y position is shown top-right for debugging.
+are raised by noise. The viewpoint drifts forward on its own across the plane
+(no input controls yet — TBD) and never reaches an edge. Palette: dark-grey
+background, light-grey lines and text. Current X/Y position is shown top-right
+for debugging.
 
 A content system existed earlier but was removed to keep the project small; it
 will be revisited after the appearance is finished. Don't reintroduce it
@@ -47,6 +48,13 @@ The whole app is `main.js`. The non-obvious parts:
   move. (A flat fragment-shader grid can't do this — elevation needs vertices.)
 - **Distance fade** in the fragment shader dissolves lines into the background
   before the lattice edge, which is what makes the plane read as infinite.
+- **Camera rides the terrain.** The camera's height tracks the ground so it
+  climbs mountains instead of clipping through. Because the height field lives in
+  the GPU vertex shader, there is a **CPU mirror** of it (`terrainHeightAt` and
+  its `nHash`/`nVnoise`/`nFbm` helpers) wrapped in `Math.fround` to reproduce the
+  GPU's 32-bit field exactly (a naive 64-bit port diverges into different terrain
+  far from the origin). **If you change the GLSL noise, change the JS mirror to
+  match, and vice-versa.**
 
 All tuning lives in the constants block at the top of `main.js` (grid size,
 camera framing, mountain noise parameters, movement speeds).

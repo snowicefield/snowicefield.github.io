@@ -25,12 +25,10 @@ Then open the printed URL (e.g. <http://localhost:3000> for `serve`, or
 <http://localhost:8000> for Python). An internet connection is required so the
 CDN can supply Three.js.
 
-### Controls
+### Navigation
 
-- **Arrow keys** move the viewpoint across the plane
-  (Up = forward, Down = back, Left/Right = sideways). Hold a key longer to move
-  faster.
-- **Click-drag** (or finger-drag on touch) pans the viewpoint.
+- The viewpoint **drifts forward on its own**; there are no input controls yet
+  (to be decided later).
 - The current X/Y position is shown top-right for debugging.
 
 ## Deploying
