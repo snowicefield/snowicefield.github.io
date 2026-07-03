@@ -31,6 +31,22 @@ CDN can supply Three.js.
   (to be decided later).
 - The current X/Y position is shown top-right for debugging.
 
+## Content window
+
+A floating window over the 3D world shows the contents of [`intro.md`](./intro.md).
+So the site never has to parse markdown at runtime, `intro.md` is **baked** into
+`intro.baked.js` (a pre-rendered HTML module) by a small Node script.
+
+After editing `intro.md`, regenerate the baked file and commit it:
+
+```sh
+node bake.js
+```
+
+This reads `intro.md`, converts it to HTML, and writes `intro.baked.js`. It has
+no dependencies to install. If you forget to re-bake, the window keeps showing
+the previously baked content.
+
 ## Deploying
 
 Because the repo is named `snowicefield.github.io`, GitHub Pages serves it at

@@ -11,7 +11,11 @@ This is a github repository as a static personal webpage, made with Three.js.
 
 - There some "mountain area" randomly appear on plane. In "mountain area" ,the points of grid plane is eleveated by noise, form shapes like mountains.
 
-- Color style : dark-grey for background , light-grey for foreground (drawed line and text).
+### Style Parameters
+- COLOR_BG : background
+- COLOR_PLANE : grid plane (surface fill) color
+- COLOR_FG : grid line color
+- PLANE_OPACITY : Grid plane opacity: 0 = fully transparent, 1 = opaque. Does not affect the grid lines, which always stay opaque.
 
 ## Navigation
 
@@ -21,7 +25,12 @@ This is a github repository as a static personal webpage, made with Three.js.
 
 ## Content System
 
-- The current content system need to be removed - we'll discuss it later, after appearance part is established.
-
+### Single .md Content System
+- Seperate code of the system into another .js file.
+- display a "floating window" in front of the view of 3D-grid world.
+- Boundary of the window is the same color of the grid line
+- Background of the window is the same color of 3D world background color but is transparent (please add a sytle parameter : window background opacity.)
+- The floating window 's width and height is a fix portion of full viewport width and height. The window's size must varies across different window size and different device.
+- The floating window display a single .md file (intro.md) and must be "baked" via a script before publish.
 
 

@@ -14,17 +14,27 @@ are raised by noise. The viewpoint drifts forward on its own across the plane
 background, light-grey lines and text. Current X/Y position is shown top-right
 for debugging.
 
-A content system existed earlier but was removed to keep the project small; it
-will be revisited after the appearance is finished. Don't reintroduce it
-unprompted.
+On top of the 3D world sits a **single-.md content window** (`content.js`): a
+centered "floating window", sized as a fraction of the viewport, that displays
+the baked contents of `intro.md`. Its border/text reuse the grid-line color and
+its background reuses the world background color at a tunable opacity — `main.js`
+owns the palette and passes the colors in, so `content.js` doesn't duplicate
+them.
 
 ## Build / run
 
-There is **no build step and no dependencies** — the site is `index.html` +
-`main.js`, with Three.js loaded from a CDN via an import map in `index.html`.
-Serve the folder over HTTP to run it locally (ES modules don't load from
-`file://`): `npx serve .` or `python -m http.server`. Deploy by pushing to the
-default branch; GitHub Pages serves it at https://snowicefield.github.io/.
+There are **no runtime dependencies** — the site is `index.html` + `main.js` +
+`content.js` + the generated `intro.baked.js`, with Three.js loaded from a CDN
+via an import map in `index.html`. Serve the folder over HTTP to run it locally
+(ES modules don't load from `file://`): `npx serve .` or `python -m http.server`.
+Deploy by pushing to the default branch; GitHub Pages serves it at
+https://snowicefield.github.io/.
+
+**One build-time step (Node, no deps):** the content window is "baked" so the
+runtime never parses markdown. After editing `intro.md`, run `node bake.js` to
+regenerate `intro.baked.js` (a JS module exporting the pre-rendered HTML), and
+commit the generated file. `bake.js` contains a small self-contained
+markdown→HTML converter.
 
 ## Architecture (main.js)
 

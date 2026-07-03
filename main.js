@@ -14,6 +14,7 @@
 // into the background at the horizon, selling the "infinite" look.
 
 import * as THREE from "three";
+import { initContent } from "./content.js";
 
 // ---------------------------------------------------------------------------
 // Tunable constants
@@ -43,12 +44,20 @@ const NOISE_SEED = new THREE.Vector2(37.2, 11.7);
 const DRIFT_SPEED = 4;
 
 // Colors
-const COLOR_BG = 0xffffff; // background
+const COLOR_BG = 0x000000; // background
 const COLOR_PLANE = 0xaaaaaa; // grid plane (surface fill) color
-const COLOR_FG = 0xaaaaaa; // grid line color
+const COLOR_FG = 0xffffff; // grid line color
 // Grid plane opacity: 0 = fully transparent, 1 = opaque. Does not affect the
 // grid lines, which always stay opaque.
 const PLANE_OPACITY = 0.5;
+
+// Content window (the single-.md floating window; rendered by content.js).
+// The border and text reuse COLOR_FG; the background reuses COLOR_BG at this
+// opacity (0 = fully transparent, 1 = opaque). Size is a fraction of the
+// viewport so the window scales across screen sizes and devices.
+const WINDOW_BG_OPACITY = 0.85;
+const WINDOW_WIDTH_FRAC = 0.7;
+const WINDOW_HEIGHT_FRAC = 0.7;
 
 // ---------------------------------------------------------------------------
 // Renderer / scene / camera
@@ -365,6 +374,18 @@ function formatHud() {
   const y = (-V.z).toFixed(1).padStart(7, " ");
   hud.textContent = `X: ${x}\nY: ${y}`;
 }
+
+// ---------------------------------------------------------------------------
+// Content: the single-.md floating window, in front of the 3D world. Reuses
+// the palette so the window stays consistent with the grid.
+// ---------------------------------------------------------------------------
+initContent({
+  colorFg: COLOR_FG,
+  colorBg: COLOR_BG,
+  bgOpacity: WINDOW_BG_OPACITY,
+  widthFrac: WINDOW_WIDTH_FRAC,
+  heightFrac: WINDOW_HEIGHT_FRAC,
+});
 
 // ---------------------------------------------------------------------------
 // Main loop
