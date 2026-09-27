@@ -1,60 +1,122 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-    <title>World of Snow Yang</title>
-    <style>
-      :root {
-        --bg: #222222;
-        --fg: #aaaaaa;
-      }
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-      html,
-      body {
-        width: 100%;
-        height: 100%;
-        overflow: hidden;
-        background: var(--bg);
-      }
-      #scene {
-        display: block;
-        width: 100%;
-        height: 100%;
-      }
-      #hud {
-        position: fixed;
-        top: 12px;
-        right: 16px;
-        font-family: "Courier New", monospace;
-        font-size: 14px;
-        line-height: 1.4;
-        color: var(--fg);
-        text-align: right;
-        white-space: pre;
-        user-select: none;
-        pointer-events: none;
-      }
-    </style>
+<html lang="en" class="snap">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Snow — Portfolio</title>
+  <meta name="description" content="Portfolio of Snow — interactive installation, projection and real-time visuals.">
+  <meta property="og:title" content="Snow — Portfolio">
+  <meta property="og:image" content="projects/01_sky/media/poster.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
 
-    <!-- Static-friendly: pull Three.js from a CDN via an import map so no
-         bundler is needed. Pinned version keeps the deploy reproducible. -->
-    <script type="importmap">
-      {
-        "imports": {
-          "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
-        }
-      }
-    </script>
-  </head>
-  <body>
-    <canvas id="scene"></canvas>
-    <div id="hud">X: --
-Y: --</div>
-    <script type="module" src="./main.js"></script>
-  </body>
+  <header class="site-header">
+    <a class="logo" href="#sky">Snow</a>
+    <nav>
+      <a href="#about">About</a>
+    </nav>
+  </header>
+
+  <main>
+
+    <!-- ===== 01 Sky ===== -->
+    <a class="reel" id="sky" data-section="Sky" href="projects/01_sky/index.html">
+      <video muted loop playsinline preload="none"
+             poster="projects/01_sky/media/poster.jpg"
+             data-hd="projects/01_sky/media/video_1080.mp4"
+             data-sd="projects/01_sky/media/video_720.mp4"></video>
+      <div class="reel-caption">
+        <div class="reel-index">01 / 05</div>
+        <h2 class="reel-title">Sky</h2>
+        <p class="reel-sub">One-line description of the Sky project.</p>
+        <span class="reel-cta">View project</span>
+      </div>
+    </a>
+    <!-- ===== 02 Cube ===== -->
+    <a class="reel" id="cube" data-section="Cube" href="projects/02_cube/index.html">
+      <video muted loop playsinline preload="none"
+             poster="projects/02_cube/media/poster.jpg"
+             data-hd="projects/02_cube/media/video_1080.mp4"
+             data-sd="projects/02_cube/media/video_720.mp4"></video>
+      <div class="reel-caption">
+        <div class="reel-index">02 / 05</div>
+        <h2 class="reel-title">Cube</h2>
+        <p class="reel-sub">One-line description of the Cube project.</p>
+        <span class="reel-cta">View project</span>
+      </div>
+    </a>
+    <!-- ===== 03 Fisheye ===== -->
+    <a class="reel" id="fisheye" data-section="Fisheye" href="projects/03_fisheye/index.html">
+      <video muted loop playsinline preload="none"
+             poster="projects/03_fisheye/media/poster.jpg"
+             data-hd="projects/03_fisheye/media/video_1080.mp4"
+             data-sd="projects/03_fisheye/media/video_720.mp4"></video>
+      <div class="reel-caption">
+        <div class="reel-index">03 / 05</div>
+        <h2 class="reel-title">Fisheye</h2>
+        <p class="reel-sub">One-line description of the Fisheye project.</p>
+        <span class="reel-cta">View project</span>
+      </div>
+    </a>
+    <!-- ===== 04 AmbiX ===== -->
+    <a class="reel" id="ambix" data-section="AmbiX" href="projects/04_ambix/index.html">
+      <video muted loop playsinline preload="none"
+             poster="projects/04_ambix/media/poster.jpg"
+             data-hd="projects/04_ambix/media/video_1080.mp4"
+             data-sd="projects/04_ambix/media/video_720.mp4"></video>
+      <div class="reel-caption">
+        <div class="reel-index">04 / 05</div>
+        <h2 class="reel-title">AmbiX</h2>
+        <p class="reel-sub">One-line description of the AmbiX project.</p>
+        <span class="reel-cta">View project</span>
+      </div>
+    </a>
+    <!-- ===== 05 Mapping ===== -->
+    <a class="reel" id="mapping" data-section="Mapping" href="projects/05_mapping/index.html">
+      <video muted loop playsinline preload="none"
+             poster="projects/05_mapping/media/poster.jpg"
+             data-hd="projects/05_mapping/media/video_1080.mp4"
+             data-sd="projects/05_mapping/media/video_720.mp4"></video>
+      <div class="reel-caption">
+        <div class="reel-index">05 / 05</div>
+        <h2 class="reel-title">Mapping</h2>
+        <p class="reel-sub">One-line description of the Mapping project.</p>
+        <span class="reel-cta">View project</span>
+      </div>
+    </a>
+
+    <!-- ===== About / personal intro ===== -->
+    <section class="about" id="about" data-section="About">
+      <div class="about-inner">
+        <div class="about-photo">
+          <!-- EDIT: replace with your own photo (e.g. assets/img/profile.jpg) -->
+          <img src="assets/img/profile-placeholder.svg" alt="Portrait of Snow" loading="lazy">
+        </div>
+        <div class="about-text">
+          <p class="eyebrow">About</p>
+          <h2>Hi, I'm Snow.</h2>
+          <!-- EDIT: your intro text. Add or remove <p> paragraphs freely. -->
+          <p>A short introduction about who you are and what you make. Two or three sentences work well here.</p>
+          <p>A second paragraph about your practice, tools, collaborations or exhibitions.</p>
+          <ul class="contact">
+            <!-- EDIT: your links -->
+            <li><a href="mailto:you@example.com">Email</a></li>
+            <li><a href="https://www.instagram.com/" target="_blank" rel="noopener">Instagram</a></li>
+            <li><a href="https://github.com/snowicefield" target="_blank" rel="noopener">GitHub</a></li>
+          </ul>
+        </div>
+      </div>
+      <footer class="site-footer">© <span id="year">2026</span> Snow</footer>
+    </section>
+  </main>
+
+  <div class="scroll-hint">Scroll</div>
+
+  <script src="assets/js/main.js"></script>
+  <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
 </html>

@@ -11,3 +11,6 @@ yarn-error.log*
 Thumbs.db
 .vscode/
 .idea/
+
+# Original video not use
+projects/*/*_demo_10s.mp4

@@ -1,54 +1,39 @@
-# World of Snow Yang
+# snowicefield.github.io
 
-A personal webpage rendered with **Three.js**: an infinite, perspective grid
-plane you travel across, with randomly scattered "mountain areas" where the grid
-rises into peaks. Served as a static site on GitHub Pages.
+Portfolio site. Plain HTML/CSS/JS, no build step.
 
-See [`SPEC.md`](./SPEC.md) for the design.
+## Structure
 
-## Running the site locally
-
-The page is plain static files (`index.html` + `main.js`) and loads Three.js
-from a CDN via an import map. ES modules will **not** load from a `file://`
-path, so serve the folder over HTTP. Any static server works — no build step and
-no dependencies to install:
-
-```sh
-# Option A — Node (no install, uses npx)
-npx serve .
-
-# Option B — Python
-python -m http.server 8000
+```
+index.html                  main page: 5 fullscreen videos + About
+assets/css/style.css        all styling (colors & fonts at the top, in :root)
+assets/js/main.js           video loading/playback + dot navigation
+assets/img/                 your photo and other shared images
+projects/01_sky/
+  index.html                project page (edit text here)
+  media/video_1080.mp4      desktop video
+  media/video_720.mp4       phone video
+  media/poster.jpg          still shown while the video loads
+  media/image_1..3.jpg      project page images (placeholders = video stills)
+tools/make_web_media.bat    regenerate media/ from a new source video
 ```
 
-Then open the printed URL (e.g. <http://localhost:3000> for `serve`, or
-<http://localhost:8000> for Python). An internet connection is required so the
-CDN can supply Three.js.
+Look for `<!-- EDIT -->` comments in the HTML to find what to change.
 
-### Navigation
+## View locally
 
-- The viewpoint **drifts forward on its own**; there are no input controls yet
-  (to be decided later).
-- The current X/Y position is shown top-right for debugging.
+- Quick: double-click `index.html`.
+- Like the real site (and to test on your phone), in this folder run
+  `python -m http.server 8000`, then open http://localhost:8000.
+  On a phone on the same Wi-Fi, open `http://<your-PC-IP>:8000`.
+- Or use VS Code + the "Live Server" extension (auto-reloads on save).
 
-## Content window
+## Common edits
 
-A floating window over the 3D world shows the contents of [`intro.md`](./intro.md).
-So the site never has to parse markdown at runtime, `intro.md` is **baked** into
-`intro.baked.js` (a pre-rendered HTML module) by a small Node script.
-
-After editing `intro.md`, regenerate the baked file and commit it:
-
-```sh
-node bake.js
-```
-
-This reads `intro.md`, converts it to HTML, and writes `intro.baked.js`. It has
-no dependencies to install. If you forget to re-bake, the window keeps showing
-the previously baked content.
-
-## Deploying
-
-Because the repo is named `snowicefield.github.io`, GitHub Pages serves it at
-<https://snowicefield.github.io/> from the default branch — just push and the
-live site updates. No build step is required.
+- **Change a project's text:** `projects/0X_name/index.html`.
+- **Change the title / one-liner on the main page:** `index.html`.
+- **Replace a video:** run `tools\make_web_media.bat projects\01_sky\new_video.mp4`.
+- **Keep the subject in frame on phones:** add `style="--focus: 30% 50%"` to that
+  `<video>` (x% y%; 0% = left/top edge).
+- **Add a 6th project:** copy a `projects/` folder, then copy one `<a class="reel">`
+  block in `index.html` and update the paths.
