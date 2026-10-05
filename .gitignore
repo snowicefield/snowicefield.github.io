@@ -14,3 +14,9 @@ Thumbs.db
 
 # Original video not use
 projects/*/*_demo_10s.mp4
+
+# Notes not needed on the website
+CLAUDE.md
+README.md
+projects/*/Info.txt
+projects/*/display_name.txt
