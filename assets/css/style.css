@@ -356,6 +356,38 @@ a {
   max-width: 65ch;
   color: #d6d6d2;
 }
+.watch-link {
+  display: inline-block;
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  text-decoration: none;
+  border-bottom: 1px solid currentColor;
+  padding-bottom: 2px;
+  color: var(--fg);
+  opacity: 0.85;
+  transition: opacity 0.2s;
+}
+.watch-link::after {
+  content: " ↗";
+}
+.watch-link:hover {
+  opacity: 1;
+}
+.credits {
+  margin: 36px 0 0;
+  max-width: 65ch;
+}
+.credits dt {
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.credits dd {
+  margin: 6px 0 0;
+  color: #d6d6d2;
+}
 
 .project-nav {
   display: flex;
