@@ -93,20 +93,41 @@
     <section class="about" id="about" data-section="About">
       <div class="about-inner">
         <div class="about-photo">
-          <!-- EDIT: replace with your own photo (e.g. assets/img/profile.jpg) -->
-          <img src="assets/img/profile-placeholder.svg" alt="Portrait of Snow" loading="lazy">
+          <img src="assets/img/profile.jpg" alt="Portrait of Snow Yang" loading="lazy">
         </div>
         <div class="about-text">
-          <p class="eyebrow">About</p>
-          <h2>Hi, I'm Snow.</h2>
-          <!-- EDIT: your intro text. Add or remove <p> paragraphs freely. -->
-          <p>A short introduction about who you are and what you make. Two or three sentences work well here.</p>
-          <p>A second paragraph about your practice, tools, collaborations or exhibitions.</p>
+          <!-- The button switches between the two lang blocks below (see main.js). -->
+          <div class="about-head">
+            <p class="eyebrow"><span lang="en">About</span><span lang="zh-Hant" hidden>關於我</span></p>
+            <button class="lang-toggle" type="button"><span lang="en">中文</span><span lang="zh-Hant" hidden>English</span></button>
+          </div>
+
+          <!-- EDIT: English intro -->
+          <div lang="en">
+            <p>I aspire to be an engineer with a strong grounding in the humanities. I have studied architecture and sociology, created contemporary poetry and dance works, and am currently practicing Tai Chi.</p>
+            <p>Professionally, I specialize in Unreal Engine and immersive systems. I have worked on multiple small-scale, mobile projection mapping projects, as well as walk-through VR experiences, motion capture, and motion platforms. I am currently working at the CLAB Dome Theater.</p>
+            <h3 class="about-sub">Professional Experience</h3>
+            <ul class="experience">
+              <li><a href="https://www.seabunny.tech" target="_blank" rel="noopener">Seabunny Tech</a><span>2020–2024</span></li>
+              <li><a href="https://www.bigxreality.com/tw/home" target="_blank" rel="noopener">Big x Reality</a><span>2024–2026</span></li>
+              <li><a href="https://fvl.clab.org.tw/" target="_blank" rel="noopener">Taiwan Contemporary Culture Lab – Future Vision Lab</a><span>2026–</span></li>
+            </ul>
+          </div>
+
+          <!-- EDIT: Chinese intro -->
+          <div lang="zh-Hant" hidden>
+            <p>立志做一個有人文素養的工程師，讀過建築和社會學，創作過現代詩和現代舞，目前正學習太極拳。</p>
+            <p>專業方面擅長虛幻引擎Unreal Engine和沉浸式系統，曾做過多個小尺度，移動式光雕投影展示專案。也做過走動式VR、動態捕捉及動感平台。目前正在CLAB穹頂劇場服務。</p>
+            <h3 class="about-sub">專業經歷</h3>
+            <ul class="experience">
+              <li><a href="https://www.seabunny.tech" target="_blank" rel="noopener">兔豚科技</a><span>2020–2024</span></li>
+              <li><a href="https://www.bigxreality.com/tw/home" target="_blank" rel="noopener">全球動力科技</a><span>2024–2026</span></li>
+              <li><a href="https://fvl.clab.org.tw/" target="_blank" rel="noopener">台灣當代文化實驗場－未來視覺實驗室</a><span>2026–</span></li>
+            </ul>
+          </div>
+
           <ul class="contact">
-            <!-- EDIT: your links -->
-            <li><a href="mailto:you@example.com">Email</a></li>
-            <li><a href="https://www.instagram.com/" target="_blank" rel="noopener">Instagram</a></li>
-            <li><a href="https://github.com/snowicefield" target="_blank" rel="noopener">GitHub</a></li>
+            <li><a href="mailto:johanyang0411@gmail.com">Email</a></li>
           </ul>
         </div>
       </div>

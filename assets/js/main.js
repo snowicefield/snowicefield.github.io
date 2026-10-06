@@ -162,3 +162,34 @@
     { passive: false }
   );
 })();
+
+/* ---------- About: English / Chinese toggle ----------
+   Elements with lang="en" or lang="zh-Hant" inside .about are shown or
+   hidden together. The visitor's choice is remembered in this browser. */
+(function () {
+  "use strict";
+
+  var about = document.querySelector(".about");
+  var button = about && about.querySelector(".lang-toggle");
+  if (!button) return;
+
+  var KEY = "about-lang";
+
+  function setLang(lang) {
+    var parts = about.querySelectorAll('[lang="en"], [lang="zh-Hant"]');
+    for (var i = 0; i < parts.length; i++) {
+      parts[i].hidden = parts[i].getAttribute("lang") !== lang;
+    }
+    button.setAttribute("aria-label", lang === "en" ? "切換為中文" : "Switch to English");
+    try { localStorage.setItem(KEY, lang); } catch (e) {}
+  }
+
+  var saved = null;
+  try { saved = localStorage.getItem(KEY); } catch (e) {}
+  setLang(saved === "zh-Hant" ? "zh-Hant" : "en");
+
+  button.addEventListener("click", function () {
+    var current = about.querySelector('div[lang="en"]').hidden ? "zh-Hant" : "en";
+    setLang(current === "en" ? "zh-Hant" : "en");
+  });
+})();
